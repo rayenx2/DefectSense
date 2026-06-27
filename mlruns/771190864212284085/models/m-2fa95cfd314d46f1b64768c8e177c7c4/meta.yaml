@@ -1,0 +1,10 @@
+artifact_location: file:///home/rayen/portfolio/deep-learning/industrial-anomaly-detection/src/../mlruns/771190864212284085/models/m-2fa95cfd314d46f1b64768c8e177c7c4/artifacts
+creation_timestamp: 1782347604088
+experiment_id: '771190864212284085'
+last_updated_timestamp: 1782347605714
+model_id: m-2fa95cfd314d46f1b64768c8e177c7c4
+model_type: null
+name: onnx_model
+source_run_id: c955fea7d7294eab8825458583199a40
+status: 2
+status_message: null

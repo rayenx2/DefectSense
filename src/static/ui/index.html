@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DefectSense — Industrial Anomaly Detection</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300d2ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.35-4.35'/><circle cx='11' cy='11' r='3' stroke='%2300d2ff' stroke-width='1.5' fill='%2300d2ff22'/></svg>">
+  <script src="/ui/react.production.min.js"></script>
+  <script src="/ui/react-dom.production.min.js"></script>
+  <script src="/ui/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0a0c16;
+      --surface:    #111420;
+      --card:       #181c2e;
+      --border:     #252a45;
+      --accent:     #00d2ff;
+      --accent2:    #7b5ea7;
+      --green:      #00e676;
+      --red:        #ff4444;
+      --yellow:     #ffab00;
+      --text:       #e8eaf6;
+      --muted:      #7986cb;
+      --dim:        #4a5280;
+      --radius:     12px;
+      --glow-a:     0 0 24px rgba(0,210,255,0.18);
+      --glow-g:     0 0 24px rgba(0,230,118,0.18);
+      --glow-r:     0 0 24px rgba(255,68,68,0.22);
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+
+    @keyframes spin  { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes scanline { 0%{top:-100%} 100%{top:100%} }
+
+    #root { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ── Nav ── */
+    .nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 56px;
+      background: rgba(17,20,32,0.9); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em; }
+    .nav-brand svg { color: var(--accent); }
+    .nav-badge {
+      font-size: .65rem; font-weight: 600; padding: 2px 8px; border-radius: 100px;
+      background: rgba(0,210,255,0.12); color: var(--accent); border: 1px solid rgba(0,210,255,0.3);
+    }
+    .nav-status { display: flex; align-items: center; gap: 8px; font-size: .78rem; color: var(--muted); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); transition: background .3s; }
+    .status-dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .nav-tabs { display: flex; gap: 2px; }
+    .nav-tab {
+      padding: 6px 14px; border-radius: 8px; font-size: .82rem; font-weight: 500; cursor: pointer;
+      border: none; background: transparent; color: var(--muted); transition: all .2s;
+    }
+    .nav-tab:hover { background: var(--card); color: var(--text); }
+    .nav-tab.active { background: rgba(0,210,255,0.12); color: var(--accent); }
+
+    /* ── Layout ── */
+    .main { flex: 1; max-width: 1400px; margin: 0 auto; width: 100%; padding: 2rem; }
+    .page { animation: fadeIn .25s ease; }
+    .page.hidden { display: none; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+    .card-title { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 1rem; }
+
+    /* ── Grid helpers ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; }
+    .stack { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* ── Drop zone ── */
+    .dropzone {
+      border: 2px dashed var(--border); border-radius: var(--radius); padding: 3rem 2rem;
+      text-align: center; cursor: pointer; transition: all .25s; position: relative; overflow: hidden;
+    }
+    .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: rgba(0,210,255,0.04); }
+    .dropzone-icon { font-size: 2.5rem; margin-bottom: .75rem; opacity: .5; }
+    .dropzone h3 { font-size: 1rem; font-weight: 600; margin-bottom: .4rem; }
+    .dropzone p { font-size: .82rem; color: var(--muted); }
+    .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 20px; border-radius: 8px; font-size: .875rem; font-weight: 600;
+      cursor: pointer; border: none; transition: all .2s; white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { filter: brightness(1.1); box-shadow: var(--glow-a); }
+    .btn-primary:disabled { opacity: .4; cursor: not-allowed; filter: none; box-shadow: none; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: rgba(255,68,68,.1); color: var(--red); border: 1px solid rgba(255,68,68,.3); }
+
+    /* ── Score gauge ── */
+    .gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+    .gauge-svg { filter: drop-shadow(0 0 16px var(--glow-color, #00d2ff44)); }
+    .gauge-label { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em; }
+    .gauge-sub { font-size: .75rem; color: var(--muted); }
+
+    /* ── Verdict ── */
+    .verdict {
+      display: flex; align-items: center; gap: .75rem;
+      padding: 1rem 1.5rem; border-radius: var(--radius); font-weight: 700; font-size: 1.1rem;
+      animation: fadeIn .3s ease;
+    }
+    .verdict.anomaly { background: rgba(255,68,68,.1); border: 1px solid rgba(255,68,68,.3); color: var(--red); box-shadow: var(--glow-r); }
+    .verdict.normal  { background: rgba(0,230,118,.1); border: 1px solid rgba(0,230,118,.3); color: var(--green); box-shadow: var(--glow-g); }
+    .verdict-icon { font-size: 1.5rem; }
+
+    /* ── Image compare ── */
+    .img-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 1rem; }
+    .img-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .img-card-label { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding: .5rem .75rem; border-bottom: 1px solid var(--border); }
+    .img-card img { width: 100%; display: block; }
+    .img-placeholder { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: .82rem; }
+
+    /* ── Heatmap overlay slider ── */
+    .overlay-wrap { position: relative; cursor: crosshair; border-radius: 8px; overflow: hidden; }
+    .overlay-wrap img.base { width: 100%; display: block; }
+    .overlay-wrap img.heat { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .overlay-slider { width: 100%; margin-top: .5rem; accent-color: var(--accent); }
+
+    /* ── Stat tiles ── */
+    .stat-tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+    .stat-value { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.04em; margin-bottom: .2rem; }
+    .stat-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+
+    /* ── Spinner ── */
+    .spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; }
+
+    /* ── Table ── */
+    .tbl { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .tbl th { text-align: left; padding: .6rem .8rem; font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .tbl td { padding: .65rem .8rem; border-bottom: 1px solid rgba(37,42,69,.5); }
+    .tbl tr:last-child td { border: none; }
+    .tbl tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* ── Pill tags ── */
+    .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 100px; font-size: .72rem; font-weight: 600; }
+    .pill-green { background: rgba(0,230,118,.1); color: var(--green); border: 1px solid rgba(0,230,118,.3); }
+    .pill-red   { background: rgba(255,68,68,.1);  color: var(--red);   border: 1px solid rgba(255,68,68,.3); }
+    .pill-blue  { background: rgba(0,210,255,.1);  color: var(--accent); border: 1px solid rgba(0,210,255,.3); }
+    .pill-dim   { background: rgba(74,82,128,.1);  color: var(--dim);   border: 1px solid rgba(74,82,128,.3); }
+
+    /* ── Progress bar ── */
+    .progress-bar { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; margin-top: .3rem; }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
+
+    /* ── Info row ── */
+    .info-row { display: flex; justify-content: space-between; align-items: center; padding: .6rem 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+    .info-row:last-child { border: none; }
+    .info-key { color: var(--muted); }
+    .info-val { font-weight: 600; font-family: monospace; font-size: .82rem; }
+
+    /* ── Bench chart ── */
+    .bench-bar-wrap { display: flex; align-items: center; gap: .75rem; padding: .5rem 0; }
+    .bench-label { width: 100px; font-size: .78rem; color: var(--muted); flex-shrink: 0; }
+    .bench-bar { flex: 1; background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
+    .bench-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 4px; transition: width .6s ease; }
+    .bench-val { width: 60px; text-align: right; font-size: .78rem; font-weight: 600; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: .75rem 1.25rem; font-size: .85rem; box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      animation: fadeIn .2s ease;
+    }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 3rem; color: var(--dim); }
+    .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: .3; }
+    .empty-msg { font-size: .875rem; }
+
+    /* ── Code block ── */
+    .code-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; font-family: monospace; font-size: .8rem; color: var(--accent); overflow-x: auto; white-space: pre; }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .nav-tabs { display: none; }
+      .main { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const API = window.location.origin.includes('8501')
+  ? 'http://localhost:8080'
+  : window.location.origin.replace(':3000','').replace(':8501','');
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function b64ToUrl(b64) {
+  return b64 ? `data:image/png;base64,${b64}` : null;
+}
+
+function scoreColor(score, threshold) {
+  if (score >= threshold) return '#ff4444';
+  if (score >= threshold * 0.8) return '#ffab00';
+  return '#00e676';
+}
+
+function fmt(n) { return typeof n === 'number' ? n.toFixed(2) : '—'; }
+
+// ── Gauge ─────────────────────────────────────────────────────────────────────
+function Gauge({ score, threshold }) {
+  const max = Math.max(threshold * 2, score * 1.2, 50);
+  const ratio = Math.min(score / max, 1);
+  const color = scoreColor(score, threshold);
+  const R = 54, cx = 64, cy = 64;
+  const circ = 2 * Math.PI * R;
+  const arc = circ * 0.75;
+  const filled = arc * ratio;
+  const dashArray = `${filled} ${circ}`;
+  const rotation = -225;
+
+  return (
+    <div className="gauge-wrap">
+      <svg width="128" height="96" viewBox="0 0 128 96" className="gauge-svg" style={{'--glow-color': color + '44'}}>
+        <circle cx={cx} cy={cy} r={R} fill="none" stroke="#252a45" strokeWidth="10"
+          strokeDasharray={`${arc} ${circ}`} strokeLinecap="round"
+          transform={`rotate(${rotation} ${cx} ${cy})`} />
+        <circle cx={cx} cy={cy} r={R} fill="none" stroke={color} strokeWidth="10"
+          strokeDasharray={dashArray} strokeLinecap="round"
+          transform={`rotate(${rotation} ${cx} ${cy})`}
+          style={{transition:'stroke-dasharray .5s ease, stroke .4s ease'}} />
+      </svg>
+      <div className="gauge-label" style={{color, marginTop:'-2.5rem'}}>{fmt(score)}</div>
+      <div className="gauge-sub">anomaly score · threshold {threshold}</div>
+    </div>
+  );
+}
+
+// ── Drop zone ─────────────────────────────────────────────────────────────────
+function Dropzone({ onFile, label = 'Drop an image here', multi = false }) {
+  const [drag, setDrag] = useState(false);
+  const onDrop = (e) => {
+    e.preventDefault(); setDrag(false);
+    const files = [...(e.dataTransfer?.files || e.target.files || [])];
+    if (files.length) onFile(multi ? files : files[0]);
+  };
+  return (
+    <div className={`dropzone ${drag ? 'drag' : ''}`}
+      onDragOver={e => { e.preventDefault(); setDrag(true); }}
+      onDragLeave={() => setDrag(false)}
+      onDrop={onDrop}>
+      <div className="dropzone-icon">📁</div>
+      <h3>{label}</h3>
+      <p>PNG · JPG · BMP · TIFF — up to 10 MB</p>
+      <input type="file" accept="image/*" multiple={multi} onChange={onDrop} />
+    </div>
+  );
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function Toast({ msg, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t); }, []);
+  return <div className="toast">{msg}</div>;
+}
+
+// ── PAGE: Analysis ─────────────────────────────────────────────────────────────
+function PageAnalysis({ threshold, addToHistory }) {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [elapsed, setElapsed] = useState(null);
+  const [opacity, setOpacity] = useState(0.6);
+  const [activeViz, setActiveViz] = useState('heatmap');
+  const [toast, setToast] = useState('');
+
+  const handleFile = (f) => { setFile(f); setResult(null); setElapsed(null); setPreview(URL.createObjectURL(f)); };
+
+  const analyze = async () => {
+    if (!file) return;
+    setLoading(true); setResult(null);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('include_visualizations', 'true');
+    const t0 = performance.now();
+    try {
+      const r = await fetch(`${API}/predict`, { method: 'POST', body: fd });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      const ms = Math.round(performance.now() - t0);
+      setResult(d); setElapsed(ms);
+      addToHistory?.({
+        time: new Date().toLocaleTimeString(),
+        name: file.name,
+        score: d.anomaly_score,
+        threshold,
+        anomaly: d.is_anomaly,
+        elapsed: ms,
+        preview,
+      });
+    } catch(e) { setToast('Error: ' + e.message); }
+    finally { setLoading(false); }
+  };
+
+  const clear = () => { setFile(null); setPreview(null); setResult(null); setElapsed(null); };
+
+  const downloadResult = () => {
+    const payload = {
+      filename: file?.name,
+      analyzed_at: new Date().toISOString(),
+      anomaly_score: result.anomaly_score,
+      is_anomaly: result.is_anomaly,
+      threshold,
+      elapsed_ms: elapsed,
+      risk_pct: +(result.anomaly_score / threshold * 100).toFixed(1),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `defectsense_${file?.name?.replace(/\.[^.]+$/, '') || 'result'}.json`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
+  const heatSrc = result ? b64ToUrl(result.heatmap_image_base64) : null;
+  const boundarySrc = result ? b64ToUrl(result.boundary_image_base64) : null;
+  const riskPct = result ? Math.min((result.anomaly_score / threshold * 100), 200) : 0;
+
+  return (
+    <div className="stack">
+      {toast && <Toast msg={toast} onClose={() => setToast('')} />}
+
+      <div className="grid-2">
+        <div className="card stack">
+          <div className="card-title">Input Image</div>
+          {!file
+            ? <Dropzone onFile={handleFile} label="Drop product image here" />
+            : <div className="stack">
+                <img src={preview} style={{width:'100%',borderRadius:8,border:'1px solid var(--border)'}} alt="input" />
+                <div style={{display:'flex',gap:8}}>
+                  <button className="btn btn-primary" onClick={analyze} disabled={loading} style={{flex:1}}>
+                    {loading ? <span className="spinner" style={{width:16,height:16}} /> : '⚡'}&nbsp;{loading ? 'Analyzing…' : 'Analyze'}
+                  </button>
+                  {result && <button className="btn btn-ghost" onClick={downloadResult} title="Download JSON">⬇ JSON</button>}
+                  <button className="btn btn-ghost" onClick={clear}>✕</button>
+                </div>
+                {elapsed && <div style={{fontSize:'.72rem',color:'var(--muted)',textAlign:'center'}}>⏱ {elapsed} ms inference</div>}
+              </div>
+          }
+        </div>
+
+        <div className="card stack" style={{justifyContent:'center',alignItems:'center',gap:'1.25rem'}}>
+          {result ? (
+            <>
+              <Gauge score={result.anomaly_score} threshold={threshold} />
+              <div className={`verdict ${result.is_anomaly ? 'anomaly' : 'normal'}`} style={{width:'100%',justifyContent:'center'}}>
+                <span className="verdict-icon">{result.is_anomaly ? '🔴' : '🟢'}</span>
+                {result.is_anomaly ? 'ANOMALY DETECTED' : 'PRODUCT NORMAL'}
+              </div>
+              {/* Risk bar */}
+              <div style={{width:'100%'}}>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:'.72rem',color:'var(--muted)',marginBottom:4}}>
+                  <span>Risk level</span>
+                  <span style={{color: scoreColor(result.anomaly_score, threshold), fontWeight:700}}>{(result.anomaly_score / threshold * 100).toFixed(0)}%</span>
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{width:`${Math.min(riskPct, 100)}%`, background: scoreColor(result.anomaly_score, threshold)}} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="empty">
+              <div className="empty-icon">🔬</div>
+              <div className="empty-msg">Upload an image and click Analyze</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {result && (heatSrc || boundarySrc) && (
+        <div className="card stack">
+          <div className="card-title">Defect Visualization</div>
+          <div style={{display:'flex',gap:8,marginBottom:8,flexWrap:'wrap'}}>
+            {[['heatmap','🌡 Heatmap'],['boundary','⬜ Boundary'],['overlay','🔀 Overlay']].map(([k,l]) => (
+              <button key={k} className={`btn btn-ghost`}
+                style={activeViz===k?{borderColor:'var(--accent)',color:'var(--accent)'}:{}}
+                onClick={()=>setActiveViz(k)}>{l}</button>
+            ))}
+          </div>
+
+          {activeViz === 'heatmap' && heatSrc &&
+            <img src={heatSrc} style={{width:'100%',maxWidth:480,borderRadius:8,border:'1px solid var(--border)'}} alt="heatmap" />}
+
+          {activeViz === 'boundary' && boundarySrc &&
+            <img src={boundarySrc} style={{width:'100%',maxWidth:480,borderRadius:8,border:'1px solid var(--border)'}} alt="boundary" />}
+
+          {activeViz === 'overlay' && heatSrc && preview && (
+            <div className="stack" style={{maxWidth:480}}>
+              <div className="overlay-wrap">
+                <img className="base" src={preview} alt="original" />
+                <img className="heat" src={heatSrc} alt="heatmap" style={{opacity}} />
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:'.75rem'}}>
+                <span style={{fontSize:'.75rem',color:'var(--muted)'}}>Opacity</span>
+                <input type="range" className="overlay-slider" min="0" max="1" step="0.05"
+                  value={opacity} onChange={e=>setOpacity(+e.target.value)} style={{flex:1}} />
+                <span style={{fontSize:'.75rem',width:36,textAlign:'right'}}>{Math.round(opacity*100)}%</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PAGE: Batch ────────────────────────────────────────────────────────────────
+function PageBatch({ threshold }) {
+  const [files, setFiles] = useState([]);
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleFiles = (fs) => { setFiles(fs); setResults([]); };
+
+  const run = async () => {
+    if (!files.length) return;
+    setLoading(true); setResults([]);
+    const fd = new FormData();
+    files.forEach(f => fd.append('files', f));
+    try {
+      const r = await fetch(`${API}/predict-batch`, { method: 'POST', body: fd });
+      const d = await r.json();
+      setResults(d.batch_results || []);
+    } catch(e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  const downloadJSON = () => {
+    const payload = { exported_at: new Date().toISOString(), threshold, results: results.map(r => ({
+      filename: r.filename, anomaly_score: r.result?.anomaly_score ?? null,
+      is_anomaly: r.result?.is_anomaly ?? null, error: r.error || null,
+    }))};
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `defectsense_batch_${Date.now()}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
+  const downloadCSV = () => {
+    const rows = [['filename','anomaly_score','is_anomaly','threshold','error']];
+    results.forEach(r => rows.push([r.filename, r.result?.anomaly_score ?? '', r.result?.is_anomaly ?? '', threshold, r.error || '']));
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `defectsense_batch_${Date.now()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
+  const anomalyCount = results.filter(r => r.result?.is_anomaly).length;
+
+  return (
+    <div className="stack">
+      <div className="card stack">
+        <div className="card-title">Batch Upload (max 10 images)</div>
+        <Dropzone onFile={handleFiles} label="Drop multiple product images" multi />
+        {files.length > 0 && (
+          <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+            <span style={{fontSize:'.82rem',color:'var(--muted)'}}>{files.length} image{files.length>1?'s':''} selected</span>
+            <button className="btn btn-primary" onClick={run} disabled={loading}>
+              {loading ? <><span className="spinner" style={{width:14,height:14}} /> Processing…</> : '⚡ Run Batch'}
+            </button>
+            <button className="btn btn-ghost" onClick={()=>{setFiles([]);setResults([]);}}>Clear</button>
+          </div>
+        )}
+      </div>
+
+      {results.length > 0 && (
+        <>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'.5rem'}}>
+            <div className="grid-3" style={{flex:1,minWidth:0}}>
+              <div className="stat-tile"><div className="stat-value">{results.length}</div><div className="stat-label">Total analyzed</div></div>
+              <div className="stat-tile"><div className="stat-value" style={{color:'var(--red)'}}>{anomalyCount}</div><div className="stat-label">Anomalies found</div></div>
+              <div className="stat-tile"><div className="stat-value" style={{color:'var(--green)'}}>{results.length - anomalyCount}</div><div className="stat-label">Passed QC</div></div>
+            </div>
+            <div style={{display:'flex',gap:'.5rem',flexShrink:0}}>
+              <button className="btn btn-ghost" onClick={downloadJSON}>⬇ JSON</button>
+              <button className="btn btn-ghost" onClick={downloadCSV}>⬇ CSV</button>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-title">Results</div>
+            <table className="tbl">
+              <thead>
+                <tr><th>#</th><th>File</th><th>Score</th><th>Threshold</th><th>Result</th></tr>
+              </thead>
+              <tbody>
+                {results.map((r,i) => (
+                  <tr key={i}>
+                    <td style={{color:'var(--dim)'}}>{i+1}</td>
+                    <td style={{fontFamily:'monospace',fontSize:'.78rem'}}>{r.filename}</td>
+                    <td style={{fontWeight:700,color:r.result ? scoreColor(r.result.anomaly_score, threshold) : 'var(--dim)'}}>
+                      {r.result ? fmt(r.result.anomaly_score) : r.error || '—'}
+                    </td>
+                    <td style={{color:'var(--dim)'}}>{threshold}</td>
+                    <td>
+                      {r.result
+                        ? <span className={`pill ${r.result.is_anomaly ? 'pill-red' : 'pill-green'}`}>
+                            {r.result.is_anomaly ? '✗ ANOMALY' : '✓ NORMAL'}
+                          </span>
+                        : <span className="pill pill-dim">ERROR</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── PAGE: History ──────────────────────────────────────────────────────────────
+function PageHistory({ history, onClear }) {
+  if (!history.length) return (
+    <div className="card"><div className="empty"><div className="empty-icon">📋</div><div className="empty-msg">No history yet — run some analyses first</div></div></div>
+  );
+
+  const anomalyCount = history.filter(h => h.anomaly).length;
+  const avgScore = (history.reduce((s, h) => s + h.score, 0) / history.length).toFixed(2);
+  const avgElapsed = history.some(h => h.elapsed)
+    ? Math.round(history.reduce((s, h) => s + (h.elapsed || 0), 0) / history.length) + ' ms'
+    : null;
+
+  const downloadJSON = () => {
+    const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `defectsense_history_${Date.now()}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
+  const downloadCSV = () => {
+    const rows = [['time','filename','anomaly_score','is_anomaly','threshold','elapsed_ms']];
+    history.forEach(h => rows.push([h.time, h.name, h.score, h.anomaly, h.threshold, h.elapsed || '']));
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `defectsense_history_${Date.now()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="stack">
+      {/* Stats + actions */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'.75rem'}}>
+        <div className="grid-4" style={{flex:1,minWidth:0}}>
+          <div className="stat-tile"><div className="stat-value">{history.length}</div><div className="stat-label">Total analyzed</div></div>
+          <div className="stat-tile"><div className="stat-value" style={{color:'var(--red)'}}>{anomalyCount}</div><div className="stat-label">Anomalies</div></div>
+          <div className="stat-tile"><div className="stat-value" style={{color:'var(--green)'}}>{history.length - anomalyCount}</div><div className="stat-label">Normal</div></div>
+          <div className="stat-tile"><div className="stat-value" style={{fontSize:'1.2rem'}}>{avgScore}</div><div className="stat-label">Avg score</div></div>
+        </div>
+        <div style={{display:'flex',gap:'.5rem',flexShrink:0}}>
+          <button className="btn btn-ghost" onClick={downloadJSON}>⬇ JSON</button>
+          <button className="btn btn-ghost" onClick={downloadCSV}>⬇ CSV</button>
+          <button className="btn btn-danger" onClick={onClear}>🗑 Clear</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">Session history — {history.length} {history.length === 1 ? 'analysis' : 'analyses'}{avgElapsed ? ` · avg ${avgElapsed}` : ''}</div>
+        <table className="tbl">
+          <thead><tr><th>Time</th><th>File</th><th>Score</th><th>Risk</th><th>Result</th>{avgElapsed && <th>ms</th>}</tr></thead>
+          <tbody>
+            {[...history].reverse().map((h,i) => {
+              const riskPct = Math.min((h.score / h.threshold) * 100, 100);
+              return (
+                <tr key={i}>
+                  <td style={{color:'var(--dim)',fontSize:'.72rem',fontFamily:'monospace',whiteSpace:'nowrap'}}>{h.time}</td>
+                  <td style={{fontFamily:'monospace',fontSize:'.78rem',maxWidth:180,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{h.name}</td>
+                  <td style={{fontWeight:700,color:scoreColor(h.score,h.threshold)}}>{fmt(h.score)}</td>
+                  <td style={{minWidth:80}}>
+                    <div className="progress-bar"><div className="progress-fill" style={{width:`${riskPct}%`,background:scoreColor(h.score,h.threshold)}} /></div>
+                    <div style={{fontSize:'.65rem',color:'var(--muted)',marginTop:2}}>{riskPct.toFixed(0)}%</div>
+                  </td>
+                  <td><span className={`pill ${h.anomaly ? 'pill-red' : 'pill-green'}`}>{h.anomaly ? '✗ ANOMALY' : '✓ NORMAL'}</span></td>
+                  {avgElapsed && <td style={{color:'var(--dim)',fontSize:'.75rem'}}>{h.elapsed || '—'}</td>}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── PAGE: Model Info ───────────────────────────────────────────────────────────
+function PageModel({ threshold, setThreshold }) {
+  const [info, setInfo] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [newT, setNewT] = useState(threshold);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState('');
+
+  useEffect(() => {
+    fetch(`${API}/model-info`).then(r=>r.json()).then(setInfo).catch(()=>{});
+    fetch(`${API}/health`).then(r=>r.json()).then(setHealth).catch(()=>{});
+  }, []);
+
+  const saveThreshold = async () => {
+    setSaving(true);
+    try {
+      await fetch(`${API}/config`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({threshold:newT, resize_width:224, resize_height:224}) });
+      setThreshold(newT);
+      setToast('Threshold updated ✓');
+    } catch(e) { setToast('Error: ' + e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="stack">
+      {toast && <Toast msg={toast} onClose={()=>setToast('')} />}
+      <div className="grid-2">
+        <div className="card stack">
+          <div className="card-title">API Health</div>
+          {health ? (
+            <>
+              <div className="info-row"><span className="info-key">Status</span><span className={`pill ${health.status==='healthy'?'pill-green':'pill-red'}`}>{health.status}</span></div>
+              <div className="info-row"><span className="info-key">Model type</span><span className="info-val">{health.model_type}</span></div>
+              <div className="info-row"><span className="info-key">Threshold</span><span className="info-val">{health.threshold}</span></div>
+              <div className="info-row"><span className="info-key">Resize</span><span className="info-val">{health.resize_size?.join('×')}</span></div>
+            </>
+          ) : <div style={{color:'var(--dim)'}}>Loading…</div>}
+        </div>
+
+        <div className="card stack">
+          <div className="card-title">Update Threshold</div>
+          <p style={{fontSize:'.82rem',color:'var(--muted)',lineHeight:1.6}}>The anomaly score threshold separates NORMAL from ANOMALY. Lower → more sensitive. Higher → fewer false positives.</p>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <input type="number" step="0.5" value={newT} onChange={e=>setNewT(+e.target.value)}
+              style={{flex:1,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:'8px 12px',color:'var(--text)',fontSize:'.875rem'}} />
+            <button className="btn btn-primary" onClick={saveThreshold} disabled={saving}>{saving ? '…' : 'Apply'}</button>
+          </div>
+        </div>
+      </div>
+
+      {info && (
+        <div className="card">
+          <div className="card-title">ONNX Model I/O</div>
+          <div className="grid-2">
+            <div>
+              <div style={{fontSize:'.72rem',textTransform:'uppercase',letterSpacing:'.07em',color:'var(--muted)',marginBottom:'.5rem'}}>Inputs</div>
+              {info.inputs?.map((inp,i) => (
+                <div key={i} className="info-row">
+                  <span className="info-key">{inp[0]}</span>
+                  <span className="info-val">[{inp[1]?.join(', ')}] {inp[2]}</span>
+                </div>
+              ))}
+            </div>
+            <div>
+              <div style={{fontSize:'.72rem',textTransform:'uppercase',letterSpacing:'.07em',color:'var(--muted)',marginBottom:'.5rem'}}>Outputs</div>
+              {info.outputs?.map((out,i) => (
+                <div key={i} className="info-row">
+                  <span className="info-key">{out[0]}</span>
+                  <span className="info-val">[{out[1]?.join(', ')}] {out[2]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PAGE: Benchmark ────────────────────────────────────────────────────────────
+function PageBenchmark() {
+  const [file, setFile] = useState(null);
+  const [running, setRunning] = useState(false);
+  const [results, setResults] = useState(null);
+
+  const run = async () => {
+    if (!file) return;
+    setRunning(true); setResults(null);
+    const N = 20;
+    const times = [];
+    for (let i = 0; i < N; i++) {
+      const fd = new FormData(); fd.append('file', file); fd.append('include_visualizations', 'false');
+      const t0 = performance.now();
+      await fetch(`${API}/predict`, { method:'POST', body: fd });
+      times.push(performance.now() - t0);
+    }
+    const avg = times.reduce((a,b)=>a+b,0)/N;
+    const min = Math.min(...times);
+    const max = Math.max(...times);
+    const p95 = [...times].sort((a,b)=>a-b)[Math.floor(N*0.95)];
+    setResults({ avg, min, max, p95, fps: 1000/avg, n: N });
+    setRunning(false);
+  };
+
+  return (
+    <div className="stack">
+      <div className="card stack">
+        <div className="card-title">Latency Benchmark</div>
+        <p style={{fontSize:'.82rem',color:'var(--muted)',lineHeight:1.6}}>
+          Runs 20 consecutive inferences via the ONNX API and measures round-trip latency including HTTP overhead.
+        </p>
+        <Dropzone onFile={setFile} label="Drop a test image" />
+        {file && (
+          <button className="btn btn-primary" onClick={run} disabled={running} style={{alignSelf:'flex-start'}}>
+            {running ? <><span className="spinner" style={{width:14,height:14}} /> Running 20 passes…</> : '▶ Run Benchmark'}
+          </button>
+        )}
+      </div>
+
+      {results && (
+        <div className="grid-2">
+          <div className="card">
+            <div className="card-title">Latency (ms)</div>
+            {[['Average',results.avg],['Min',results.min],['Max',results.max],['p95',results.p95]].map(([l,v]) => (
+              <div key={l} className="bench-bar-wrap">
+                <span className="bench-label">{l}</span>
+                <div className="bench-bar"><div className="bench-fill" style={{width:`${(v/results.max*100)}%`}} /></div>
+                <span className="bench-val">{v.toFixed(1)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="card">
+            <div className="card-title">Throughput</div>
+            <div className="stat-tile" style={{marginBottom:'1rem'}}>
+              <div className="stat-value" style={{color:'var(--accent)'}}>{results.fps.toFixed(1)}</div>
+              <div className="stat-label">FPS (requests/sec)</div>
+            </div>
+            <div className="info-row"><span className="info-key">Passes</span><span className="info-val">{results.n}</span></div>
+            <div className="info-row"><span className="info-key">Provider</span><span className="info-val">CPUExecutionProvider</span></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PAGE: About ────────────────────────────────────────────────────────────────
+function PageAbout() {
+  const stack = [
+    ['PaDiM','One-class anomaly detection — no defect labels needed','#00d2ff'],
+    ['ONNX Runtime','Optimized inference engine — 2-3× faster than PyTorch','#7b5ea7'],
+    ['FastAPI','Async REST API with auto Swagger docs','#00e676'],
+    ['ResNet18','ImageNet-pretrained backbone for feature extraction','#ffab00'],
+    ['Docker','Containerized multi-service deployment','#0db7ed'],
+    ['Mahalanobis Distance','Statistically-aware anomaly scoring per patch','#ff6b6b'],
+  ];
+  return (
+    <div className="stack">
+      <div className="card">
+        <div className="card-title">About DefectSense</div>
+        <p style={{fontSize:'.9rem',lineHeight:1.75,color:'var(--muted)',marginBottom:'1.5rem'}}>
+          DefectSense is a production-grade MLOps system for real-time visual defect detection in industrial manufacturing.
+          It trains a <strong style={{color:'var(--text)'}}>PaDiM model</strong> on normal product images only — no defect examples needed —
+          exports it to <strong style={{color:'var(--text)'}}>ONNX</strong> for optimized inference, and serves it via a FastAPI backend.
+        </p>
+        <div className="grid-3">
+          {stack.map(([name,desc,color]) => (
+            <div key={name} className="stat-tile" style={{borderLeft:`3px solid ${color}`}}>
+              <div style={{fontWeight:700,marginBottom:'.3rem',color}}>{name}</div>
+              <div style={{fontSize:'.78rem',color:'var(--muted)',lineHeight:1.5}}>{desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">Key Performance Numbers</div>
+        <div className="grid-4">
+          {[['0.850','Image AUROC'],['0.956','Pixel AUROC'],['43 FPS','CPU throughput'],['15 MB','ONNX model size']].map(([v,l]) => (
+            <div key={l} className="stat-tile">
+              <div className="stat-value" style={{color:'var(--accent)',fontSize:'1.5rem'}}>{v}</div>
+              <div className="stat-label">{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">Quick Start</div>
+        <div className="code-block">{`# Clone and start with Docker Compose
+git clone https://github.com/rayenx2/DefectSense
+cd DefectSense
+docker compose up
+
+# API: http://localhost:8080
+# UI:  http://localhost:8080/ui
+# Docs: http://localhost:8080/docs`}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── PAGE: Registry ────────────────────────────────────────────────────────────
+function PageRegistry() {
+  const [data, setData] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState('');
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch(`${API}/registry`).then(r => r.json()),
+        fetch(`${API}/registry/history`).then(r => r.json()),
+      ]);
+      setData(r1);
+      setHistory(r2.history || []);
+    } catch(e) { setToast('Failed to load registry: ' + e.message); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const promote = async (filename, stage) => {
+    try {
+      const r = await fetch(`${API}/registry/promote`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ filename, target_stage: stage })
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Failed');
+      setToast(d.message); load();
+    } catch(e) { setToast('Error: ' + e.message); }
+  };
+
+  const rollback = async () => {
+    try {
+      const r = await fetch(`${API}/registry/rollback`, { method: 'POST' });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || 'Failed');
+      setToast(d.message); load();
+    } catch(e) { setToast('Error: ' + e.message); }
+  };
+
+  const downloadJSON = async () => {
+    try {
+      const r = await fetch(`${API}/registry/export`);
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'model_registry.json';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+      setToast('Downloaded model_registry.json ✓');
+    } catch(e) { setToast('Download failed: ' + e.message); }
+  };
+
+  const entries = data?.entries || [];
+  const byStage = (s) => entries.filter(e => e.stage === s);
+  const stageColor = { staging: 'var(--yellow)', production: 'var(--green)', archived: 'var(--dim)' };
+  const stagePill  = { staging: 'pill-blue', production: 'pill-green', archived: 'pill-dim' };
+  const hasProd = byStage('production').length > 0;
+  const hasArchived = byStage('archived').length > 0;
+
+  function ModelCard({ entry }) {
+    return (
+      <div className="card stack" style={{borderLeft:`3px solid ${stageColor[entry.stage]}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'1rem'}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:'.88rem',marginBottom:'.2rem',fontFamily:'monospace'}}>{entry.filename}</div>
+            <div style={{fontSize:'.72rem',color:'var(--muted)'}}>
+              v{entry.version} · {entry.file_size_mb} MB · {entry.registered_at?.slice(0,10)}
+            </div>
+          </div>
+          <span className={`pill ${stagePill[entry.stage]}`}>{entry.stage}</span>
+        </div>
+
+        {Object.keys(entry.metadata || {}).length > 0 && (
+          <div style={{display:'flex',gap:'.4rem',flexWrap:'wrap'}}>
+            {Object.entries(entry.metadata).map(([k,v]) => (
+              <span key={k} className="pill pill-dim" style={{fontSize:'.68rem'}}>{k}: {v}</span>
+            ))}
+          </div>
+        )}
+
+        <div style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}>
+          {entry.stage === 'staging' && (
+            <button className="btn btn-ghost" style={{fontSize:'.78rem',padding:'5px 12px'}}
+              onClick={() => promote(entry.filename, 'production')}>↑ Promote to Production</button>
+          )}
+          {entry.stage === 'staging' && (
+            <button className="btn btn-ghost" style={{fontSize:'.78rem',padding:'5px 12px'}}
+              onClick={() => promote(entry.filename, 'archived')}>Archive</button>
+          )}
+          {entry.stage === 'production' && (
+            <button className="btn btn-ghost" style={{fontSize:'.78rem',padding:'5px 12px'}}
+              onClick={() => promote(entry.filename, 'archived')}>Archive</button>
+          )}
+          {entry.stage === 'archived' && (
+            <button className="btn btn-ghost" style={{fontSize:'.78rem',padding:'5px 12px'}}
+              onClick={() => promote(entry.filename, 'staging')}>↑ Move to Staging</button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stack">
+      {toast && <Toast msg={toast} onClose={() => setToast('')} />}
+
+      {/* Toolbar */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'.5rem'}}>
+        <div style={{fontSize:'.82rem',color:'var(--muted)'}}>
+          {entries.length} model{entries.length !== 1 ? 's' : ''} registered
+          {data?.created_at && <span style={{marginLeft:'1rem',color:'var(--dim)'}}>Registry created: {data.created_at.slice(0,10)}</span>}
+        </div>
+        <div style={{display:'flex',gap:'.5rem',flexWrap:'wrap'}}>
+          {hasProd && hasArchived && (
+            <button className="btn btn-danger" onClick={rollback}>↩ Rollback Production</button>
+          )}
+          <button className="btn btn-ghost" onClick={downloadJSON}>⬇ Export JSON</button>
+          <button className="btn btn-ghost" onClick={load}>{loading ? '…' : '↻ Refresh'}</button>
+        </div>
+      </div>
+
+      {/* Stage columns */}
+      {loading && !data ? (
+        <div className="card"><div className="empty"><div className="spinner" style={{margin:'0 auto'}} /><div className="empty-msg" style={{marginTop:'1rem'}}>Loading registry…</div></div></div>
+      ) : entries.length === 0 ? (
+        <div className="card"><div className="empty"><div className="empty-icon">🗂</div><div className="empty-msg">No models registered yet</div></div></div>
+      ) : (
+        <div className="grid-3">
+          {['staging','production','archived'].map(stage => (
+            <div key={stage} className="stack">
+              <div style={{fontSize:'.7rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.08em',color:stageColor[stage],paddingBottom:'.5rem',borderBottom:`1px solid ${stageColor[stage]}33`}}>
+                {stage} ({byStage(stage).length})
+              </div>
+              {byStage(stage).length === 0
+                ? <div className="card" style={{color:'var(--dim)',fontSize:'.8rem',textAlign:'center',padding:'2rem'}}>—</div>
+                : byStage(stage).map(e => <ModelCard key={e.id} entry={e} />)
+              }
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Audit log */}
+      {history.length > 0 && (
+        <div className="card">
+          <div className="card-title">Audit Log</div>
+          <table className="tbl">
+            <thead><tr><th>Time</th><th>Action</th><th>Model</th><th>Details</th></tr></thead>
+            <tbody>
+              {history.map((h,i) => (
+                <tr key={i}>
+                  <td style={{color:'var(--dim)',fontSize:'.72rem',fontFamily:'monospace',whiteSpace:'nowrap'}}>{h.timestamp?.slice(0,19).replace('T',' ')}</td>
+                  <td><span className={`pill ${h.action==='rollback'?'pill-red':h.action==='promote'?'pill-green':'pill-blue'}`}>{h.action}</span></td>
+                  <td style={{fontFamily:'monospace',fontSize:'.78rem'}}>{h.filename || h.entry_id?.split('__')[0] || '—'}</td>
+                  <td style={{fontSize:'.78rem',color:'var(--muted)'}}>
+                    {h.from_stage && `${h.from_stage} → ${h.to_stage}`}
+                    {h.action === 'rollback' && 'production rollback'}
+                    {h.action === 'register' && `registered as ${h.stage}`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Router helpers ────────────────────────────────────────────────────────────
+const TABS = [
+  { id: 'analyze',  label: '🔬 Analyze' },
+  { id: 'batch',    label: '📦 Batch' },
+  { id: 'history',  label: '📋 History' },
+  { id: 'model',    label: '⚙ Model' },
+  { id: 'bench',    label: '⚡ Benchmark' },
+  { id: 'registry', label: '🗂 Registry' },
+  { id: 'about',    label: 'ℹ About' },
+];
+const VALID = new Set(TABS.map(t => t.id));
+
+function getRouteTab() {
+  const seg = window.location.pathname.replace(/^\//, '').split('/')[0];
+  return VALID.has(seg) ? seg : 'analyze';
+}
+
+function navigate(id) {
+  window.history.pushState({tab: id}, '', `/${id}`);
+}
+
+// ── App root ──────────────────────────────────────────────────────────────────
+function App() {
+  const [tab, setTab] = useState(getRouteTab);
+  const [apiOnline, setApiOnline] = useState(false);
+  const [threshold, setThreshold] = useState(24);
+  const [history, setHistory] = useState([]);
+
+  // Sync tab with browser back/forward
+  useEffect(() => {
+    const onPop = () => setTab(getRouteTab());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const switchTab = (id) => { navigate(id); setTab(id); };
+
+  useEffect(() => {
+    const check = () =>
+      fetch(`${API}/health`)
+        .then(r=>r.json())
+        .then(d=>{ setApiOnline(d.status==='healthy'); if(d.threshold) setThreshold(d.threshold); })
+        .catch(()=>setApiOnline(false));
+    check();
+    const id = setInterval(check, 15000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div id="root">
+      <nav className="nav">
+        <div style={{display:'flex',alignItems:'center',gap:'1.5rem'}}>
+          <div className="nav-brand">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            DefectSense
+            <span className="nav-badge">v2.0</span>
+          </div>
+          <div className="nav-tabs" style={{display:'flex',gap:2}}>
+            {TABS.map(t => (
+              <button key={t.id} className={`nav-tab ${tab===t.id?'active':''}`} onClick={()=>switchTab(t.id)}>{t.label}</button>
+            ))}
+          </div>
+        </div>
+        <div className="nav-status">
+          <div className={`status-dot ${apiOnline?'online':''}`} />
+          API {apiOnline ? 'online' : 'offline'}
+          <span style={{color:'var(--dim)'}}>·</span>
+          threshold {threshold}
+        </div>
+      </nav>
+
+      <main className="main">
+        <div className={`page ${tab==='analyze'  ?'':'hidden'}`}><PageAnalysis threshold={threshold} addToHistory={e => setHistory(h => [...h, e])} /></div>
+        <div className={`page ${tab==='batch'    ?'':'hidden'}`}><PageBatch threshold={threshold} /></div>
+        <div className={`page ${tab==='history'  ?'':'hidden'}`}><PageHistory history={history} onClear={() => setHistory([])} /></div>
+        <div className={`page ${tab==='model'    ?'':'hidden'}`}><PageModel threshold={threshold} setThreshold={setThreshold} /></div>
+        <div className={`page ${tab==='bench'    ?'':'hidden'}`}><PageBenchmark /></div>
+        <div className={`page ${tab==='registry' ?'':'hidden'}`}><PageRegistry /></div>
+        <div className={`page ${tab==='about'    ?'':'hidden'}`}><PageAbout /></div>
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

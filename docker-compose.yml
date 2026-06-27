@@ -1,0 +1,27 @@
+services:
+  fastapi:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.np
+    ports:
+      - "8080:8080"
+    environment:
+      - MODEL_PATH=./models/padim_model.onnx
+    volumes:
+      - ./models:/app/models
+    restart: unless-stopped
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.streamlit
+    ports:
+      - "8501:8501"
+    depends_on:
+      - fastapi
+    command: >
+      streamlit run streamlit_app_v2.py
+      --server.port=8501
+      --server.address=0.0.0.0
+      -- --host fastapi --port 8080
+    restart: unless-stopped

@@ -1,0 +1,16 @@
+creation_timestamp: 1782347605719
+current_stage: None
+deployment_job_state: null
+description: null
+last_updated_timestamp: 1782347605719
+model_id: m-2fa95cfd314d46f1b64768c8e177c7c4
+name: PadimONNX
+run_id: c955fea7d7294eab8825458583199a40
+run_link: null
+source: models:/m-2fa95cfd314d46f1b64768c8e177c7c4
+status: READY
+status_message: null
+storage_location: file:///home/rayen/portfolio/deep-learning/industrial-anomaly-detection/src/../mlruns/771190864212284085/models/m-2fa95cfd314d46f1b64768c8e177c7c4/artifacts
+user_id: null
+version: 1
+workspace: default

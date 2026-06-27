@@ -1,0 +1,10 @@
+channels:
+- conda-forge
+dependencies:
+- python=3.10.12
+- pip<=22.0.2
+- pip:
+  - mlflow==3.14.0
+  - onnx==1.22.0
+  - onnxruntime==1.23.2
+name: mlflow-env
