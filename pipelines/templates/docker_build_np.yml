@@ -1,0 +1,9 @@
+parameters: {}
+steps:
+  - task: DownloadBuildArtifacts@0
+    inputs:
+      artifactName: 'models'
+      downloadPath: './'
+  - script: |
+      docker build --no-cache -t fastapi-defectsense:np -f docker/Dockerfile.np .
+    displayName: "Build FastAPI Docker Image with NumPy"

@@ -1,0 +1,14 @@
+artifact_uri: file:///home/rayen/portfolio/deep-learning/industrial-anomaly-detection/src/../mlruns/771190864212284085/c955fea7d7294eab8825458583199a40/artifacts
+end_time: 1782347605730
+entry_point_name: ''
+experiment_id: '771190864212284085'
+lifecycle_stage: active
+run_id: c955fea7d7294eab8825458583199a40
+run_name: bottle_resnet18_v1
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1782347592902
+status: 3
+tags: []
+user_id: rayen

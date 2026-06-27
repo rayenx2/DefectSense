@@ -1,0 +1,6 @@
+parameters: {}
+steps:
+  - script: |
+      docker tag fastapi-defectsense:np $(ACR_NAME).azurecr.io/fastapi-defectsense:latest
+      docker push $(ACR_NAME).azurecr.io/fastapi-defectsense:latest
+    displayName: "Tag and Push Docker Image"

@@ -1,0 +1,39 @@
+parameters: {}
+
+steps:
+  - task: AzureCLI@2
+    displayName: "Create Online Deployment"
+    inputs:
+      azureSubscription: mlops_anomaly_detection
+      scriptType: ps
+      scriptLocation: inlineScript
+      inlineScript: |
+        Write-Output "Creating online deployment..."
+
+        az ml online-deployment create `
+          --file ./deployment/deployment-k8s-config.yml `
+          --resource-group $(RESOURCE_GROUP) `
+          --workspace-name $(WORKSPACE) `
+          --all-traffic
+
+        Write-Output "Online deployment created successfully!"
+
+  - task: AzureCLI@2
+    displayName: "Get Endpoint Details and Scoring URI"
+    inputs:
+      azureSubscription: mlops_anomaly_detection
+      scriptType: ps
+      scriptLocation: inlineScript
+      inlineScript: |
+        Write-Output "Getting endpoint details..."
+
+        $endpoint = az ml online-endpoint show `
+          --name defectsense-endpoint `
+          --resource-group $(RESOURCE_GROUP) `
+          --workspace-name $(WORKSPACE) | ConvertFrom-Json
+
+        Write-Output "=== DEPLOYMENT COMPLETE ==="
+        Write-Output "Endpoint Name: $($endpoint.name)"
+        Write-Output "Scoring URI: $($endpoint.scoring_uri)"
+        Write-Output "Authentication: $($endpoint.auth_mode)"
+        Write-Output "Status: $($endpoint.provisioning_state)"

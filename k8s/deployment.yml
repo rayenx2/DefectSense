@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+
+kind: Deployment
+
+metadata:
+   name: defectsense-deploy
+   labels:
+     app: defectsense
+     type: FastAPI
+
+spec:
+   template:
+    metadata:
+      name: defectsense-repl
+      labels:
+        app: defectsense
+        type: FastAPI
+
+    spec:
+      containers:
+      - name: defectsense
+        image: acrdefectsense.azurecr.io/fastapi-defectsense:latest
+        # image: deepknowledge/fastapi-defectsense:latest
+
+        ports:
+          - containerPort: 8080
+      imagePullSecrets:
+      - name: acr-secret
+   
+   replicas: 1
+   selector:
+      matchLabels: 
+        app: defectsense
+        type: FastAPI

@@ -1,0 +1,22 @@
+dataset_path: /home/rayen/data/mvtec/bottle
+model_data_path: ../models/
+output_model: model_padim.pt
+backbone: resnet18
+layer_indices:
+- 0
+feat_dim: 100
+batch_size: 4
+input_channels: 3
+input_height: 224
+input_width: 224
+onnx_output_name: padim_model.onnx
+dynamic_batch: false
+mlflow_tracking_uri: file:../mlruns
+mlflow_experiment_name: padim_anomaly_detection
+run_name: bottle_resnet18_v1
+registered_model_name: PadimONNX
+evaluate_model: false
+threshold: 13.0
+generate_baseline: false
+baseline_output_path: ../outputs/baseline_reference.csv
+log_level: INFO

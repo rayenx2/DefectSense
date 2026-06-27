@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="700" viewBox="0 0 700 700" font-family="Inter, Arial, sans-serif">
+  <rect width="700" height="700" fill="#0d1117"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#f97316"/>
+    </marker>
+  </defs>
+
+  <rect x="60" y="16" width="580" height="50" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="350" y="38" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">Data (MVTec AD format)</text>
+  <text x="350" y="56" text-anchor="middle" fill="#8b949e" font-size="10">dataset/&lt;class&gt;/train/good/, normal images only</text>
+
+  <line x1="350" y1="66" x2="350" y2="96" stroke="#f97316" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="60" y="98" width="580" height="86" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="350" y="120" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">src/train.py (training pipeline)</text>
+  <text x="80" y="140" fill="#8b949e" font-size="10">DefectSense.Padim.fit(), frozen ResNet features</text>
+  <text x="80" y="156" fill="#8b949e" font-size="10">MLflow tracking (experiments, metrics, artifacts)</text>
+  <text x="80" y="172" fill="#8b949e" font-size="10">ONNX export via ModelExporter, drift baseline to outputs/baseline.csv</text>
+
+  <line x1="350" y1="184" x2="350" y2="214" stroke="#f97316" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="440" y="202" fill="#64748b" font-size="9">distributions/padim_model.onnx</text>
+
+  <rect x="60" y="216" width="580" height="80" rx="8" fill="#161b22" stroke="#f97316" stroke-width="1.5"/>
+  <text x="350" y="238" text-anchor="middle" fill="#fdba74" font-size="12" font-weight="700">FastAPI backend</text>
+  <text x="80" y="258" fill="#8b949e" font-size="10">src/fastapi_app_np.py (production), src/fastapi_app.py (PyTorch + ONNX fallback)</text>
+  <text x="80" y="274" fill="#8b949e" font-size="10">Port 8080, ONNX Runtime (CPU or CUDA), POST /predict /predict-batch GET /health</text>
+
+  <line x1="350" y1="296" x2="350" y2="326" stroke="#f97316" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="380" y="314" fill="#64748b" font-size="9">HTTP</text>
+
+  <rect x="60" y="328" width="580" height="70" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="350" y="350" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">Streamlit dashboard (src/streamlit_app_v2.py)</text>
+  <text x="350" y="370" text-anchor="middle" fill="#8b949e" font-size="10">Port 8501, 6 tabs: Analysis, Batch, History,</text>
+  <text x="350" y="386" text-anchor="middle" fill="#8b949e" font-size="10">Model Info, Benchmark, Registry</text>
+
+  <rect x="60" y="418" width="580" height="264" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="350" y="444" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700">Supporting layers</text>
+  <text x="80" y="470" fill="#8b949e" font-size="10.5" font-family="monospace">src/ai/optimizer.py: ONNX Runtime benchmark + optimization</text>
+  <text x="80" y="492" fill="#8b949e" font-size="10.5" font-family="monospace">src/ai/registry.py: model version / stage management (JSON)</text>
+  <text x="80" y="514" fill="#8b949e" font-size="10.5" font-family="monospace">src/ai/compare.py: side-by-side model comparison</text>
+  <text x="80" y="536" fill="#8b949e" font-size="10.5" font-family="monospace">src/monitor_drift.py: production drift detection (alibi-detect)</text>
+  <text x="80" y="558" fill="#8b949e" font-size="10.5" font-family="monospace">monitoring/: App Insights, drift alerts, Prometheus</text>
+  <text x="80" y="580" fill="#8b949e" font-size="10.5" font-family="monospace">docker/: multi-stage Dockerfiles</text>
+  <text x="80" y="602" fill="#8b949e" font-size="10.5" font-family="monospace">k8s/: Kubernetes manifests (AKS)</text>
+  <text x="80" y="624" fill="#8b949e" font-size="10.5" font-family="monospace">deployment/: Azure ML endpoint configs</text>
+  <text x="80" y="646" fill="#8b949e" font-size="10.5" font-family="monospace">devops/: Azure DevOps YAML pipelines</text>
+  <text x="80" y="668" fill="#8b949e" font-size="10.5" font-family="monospace">jobs/: Azure ML job definitions</text>
+</svg>

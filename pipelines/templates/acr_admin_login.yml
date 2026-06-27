@@ -1,0 +1,18 @@
+parameters: {}
+steps:
+  - task: AzureCLI@2
+    displayName: "Login to ACR Using Admin Credentials"
+    inputs:
+      azureSubscription: mlops_anomaly_detection
+      scriptType: ps
+      scriptLocation: inlineScript
+      inlineScript: |
+        $creds = az acr credential show `
+          --name $(ACR_NAME) `
+          --resource-group $(RESOURCE_GROUP) | ConvertFrom-Json
+
+        $username = $creds.username
+        $password = $creds.passwords[0].value
+        docker login $(ACR_NAME).azurecr.io `
+          --username $username `
+          --password $password
